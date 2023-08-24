@@ -14,6 +14,7 @@
  * KIND, either express or implied.  See the License for the
  * specific language governing permissions and limitations
  * under the License.
+ * Modified by INTM for EDF/Enedis
  */
 
 package org.wso2.carbon.identity.auth.service.handler.impl;
@@ -29,9 +30,12 @@ import org.wso2.carbon.identity.auth.service.AuthenticationResult;
 import org.wso2.carbon.identity.auth.service.AuthenticationStatus;
 import org.wso2.carbon.identity.auth.service.handler.AuthenticationHandler;
 import org.wso2.carbon.identity.core.bean.context.MessageContext;
+import org.wso2.carbon.user.core.util.UserCoreUtil;
 import org.wso2.carbon.utils.ServerConstants;
 import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 import org.wso2.carbon.utils.multitenancy.MultitenantUtils;
+
+import javax.servlet.http.Cookie;
 
 import static org.apache.commons.lang.StringUtils.isNotBlank;
 import static org.wso2.carbon.identity.auth.service.util.Constants.COOKIE_AUTH_HEADER;
@@ -40,6 +44,7 @@ import static org.wso2.carbon.identity.auth.service.util.Constants.JSESSIONID;
 /**
  * This handler is used to authenticate the rest APIs based on the set-cookie obtained from the AuthenticationAdmin
  * Service.
+ * Modified by INTM for EDF/Enedis
  */
 public class TomcatCookieAuthenticationHandler extends AuthenticationHandler {
 
@@ -63,9 +68,12 @@ public class TomcatCookieAuthenticationHandler extends AuthenticationHandler {
         if (messageContext instanceof AuthenticationContext) {
             AuthenticationContext authenticationContext = (AuthenticationContext) messageContext;
             if (authenticationContext.getAuthenticationRequest() != null) {
-                String cookie = authenticationContext.getAuthenticationRequest().
-                        getHeader(COOKIE_AUTH_HEADER);
-                return StringUtils.isNotEmpty(cookie) && cookie.startsWith(JSESSIONID);
+                Cookie[] cookies = authenticationContext.getAuthenticationRequest().getCookies();
+                for (Cookie cookie : cookies) {
+                    if (cookie.getName().equals(JSESSIONID)) {
+                        return true;
+                    }
+                }
             }
         }
         return false;
@@ -110,9 +118,13 @@ public class TomcatCookieAuthenticationHandler extends AuthenticationHandler {
 
     private User buildUser(String userName, String tenantDomain) {
 
+        String userStoreDomain = UserCoreUtil.extractDomainFromName(userName);
+        userName = UserCoreUtil.removeDomainFromName(userName);
+
         User user = new User();
         user.setUserName(MultitenantUtils.getTenantAwareUsername(userName));
         user.setTenantDomain(tenantDomain);
+        user.setUserStoreDomain(userStoreDomain);
         return user;
     }
 
